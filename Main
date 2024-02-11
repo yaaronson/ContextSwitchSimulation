@@ -1,0 +1,195 @@
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+enum ProcessState {
+    READY,
+    BLOCKED,
+    SUSPENDED_READY,
+    SUSPENDED_BLOCKED,
+    FINISHED
+}
+
+class SimProcess {
+    private int pid;
+    private String procName;
+    private int totalInstructions;
+
+    public SimProcess(int pid, String procName, int totalInstructions) {
+        this.pid = pid;
+        this.procName = procName;
+        this.totalInstructions = totalInstructions;
+    }
+
+    public String getProcName() {
+        return procName;
+    }
+
+    public ProcessState execute(int i) {
+        System.out.println("Executing instruction " + (i + 1) + " of process " + procName + " (PID: " + pid + ")");
+        if (i >= totalInstructions) {
+            return ProcessState.FINISHED;
+        }
+
+        Random rand = new Random();
+        if (rand.nextDouble() <= 0.15) {
+            return ProcessState.BLOCKED;
+        } else {
+            return ProcessState.READY;
+        }
+    }
+}
+
+class SimProcessor {
+    private SimProcess currentProcess;
+    private int[] registers = new int[4];
+    private int currInstruction;
+
+    public void setCurrentProcess(SimProcess currentProcess) {
+        this.currentProcess = currentProcess;
+    }
+
+    public SimProcess getCurrentProcess() {
+        return currentProcess;
+    }
+
+    public void setRegisterValue(int index, int value) {
+        if (index >= 0 && index < registers.length) {
+            registers[index] = value;
+        }
+    }
+
+    public int[] getRegisterValues() {
+        return registers;
+    }
+
+    public void setCurrInstruction(int currInstruction) {
+        this.currInstruction = currInstruction;
+    }
+
+    public int getCurrInstruction() {
+        return currInstruction;
+    }
+
+    public ProcessState executeNextInstruction() {
+        if (currentProcess == null) {
+            return null;
+        }
+
+        ProcessState result = currentProcess.execute(currInstruction);
+        currInstruction++;
+
+        Random rand = new Random();
+        for (int i = 0; i < registers.length; i++) {
+            registers[i] = rand.nextInt(1000);
+        }
+
+        return result;
+    }
+}
+
+
+class ProcessControlBlock {
+    private SimProcess process;
+    private int currentInstruction;
+    private int[] registers = new int[4];
+
+    public ProcessControlBlock(SimProcess process) {
+        this.process = process;
+    }
+
+    public SimProcess getProcess() {
+        return process;
+    }
+
+    public int getCurrentInstruction() {
+        return currentInstruction;
+    }
+
+    public void setCurrentInstruction(int currentInstruction) {
+        this.currentInstruction = currentInstruction;
+    }
+
+    public int[] getRegisterValues() {
+        return registers;
+    }
+
+    public void setRegisterValue(int index, int value) {
+        if (index >= 0 && index < registers.length) {
+            registers[index] = value;
+        }
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        final int QUANTUM = 5;
+        List<ProcessControlBlock> readyProcesses = new ArrayList<>();
+        List<ProcessControlBlock> blockedProcesses = new ArrayList<>();
+
+        // Creating 10 processes with random number of instructions
+        for (int i = 1; i <= 10; i++) {
+            int totalInstructions = 100 + new Random().nextInt(301);
+            SimProcess process = new SimProcess(i, "Process" + i, totalInstructions);
+            ProcessControlBlock pcb = new ProcessControlBlock(process);
+            readyProcesses.add(pcb);
+        }
+
+        SimProcessor processor = new SimProcessor();
+
+        // Loop for 3000 iterations
+        for (int step = 1; step <= 3000; step++) {
+            // Performing context switch or executing instruction
+            if (processor.getCurrentProcess() == null || processor.getCurrInstruction() >= QUANTUM) {
+                if (!readyProcesses.isEmpty()) {
+                    if (processor.getCurrentProcess() != null) {
+                        ProcessControlBlock currentPCB = new ProcessControlBlock(processor.getCurrentProcess());
+                        currentPCB.setCurrentInstruction(processor.getCurrInstruction());
+                        currentPCB.setRegisterValue(0, processor.getRegisterValues()[0]);
+                        currentPCB.setRegisterValue(1, processor.getRegisterValues()[1]);
+                        currentPCB.setRegisterValue(2, processor.getRegisterValues()[2]);
+                        currentPCB.setRegisterValue(3, processor.getRegisterValues()[3]);
+                        readyProcesses.add(currentPCB);
+                    }
+                    ProcessControlBlock nextProcess = readyProcesses.remove(0);
+                    processor.setCurrentProcess(nextProcess.getProcess());
+                    processor.setCurrInstruction(nextProcess.getCurrentInstruction());
+                    processor.setRegisterValue(0, nextProcess.getRegisterValues()[0]);
+                    processor.setRegisterValue(1, nextProcess.getRegisterValues()[1]);
+                    processor.setRegisterValue(2, nextProcess.getRegisterValues()[2]);
+                    processor.setRegisterValue(3, nextProcess.getRegisterValues()[3]);
+                    System.out.println("Step " + step + " Context switch: Restoring process: " + processor.getCurrentProcess().getProcName());
+                } else {
+                    System.out.println("Step " + step + " Processor is idling");
+                }
+            } else {
+                ProcessState result = processor.executeNextInstruction();
+                if (result == ProcessState.FINISHED) {
+                    System.out.println("Step " + step + " Process " + processor.getCurrentProcess().getProcName() + " finished");
+                    processor.setCurrentProcess(null);
+                } else if (result == ProcessState.BLOCKED) {
+                    ProcessControlBlock currentPCB = new ProcessControlBlock(processor.getCurrentProcess());
+                    currentPCB.setCurrentInstruction(processor.getCurrInstruction());
+                    currentPCB.setRegisterValue(0, processor.getRegisterValues()[0]);
+                    currentPCB.setRegisterValue(1, processor.getRegisterValues()[1]);
+                    currentPCB.setRegisterValue(2, processor.getRegisterValues()[2]);
+                    currentPCB.setRegisterValue(3, processor.getRegisterValues()[3]);
+                    blockedProcesses.add(currentPCB);
+                    processor.setCurrentProcess(null);
+                    System.out.println("Step " + step + " *** Process blocked ***");
+                }
+            }
+
+           
+            for (int i = 0; i < blockedProcesses.size(); i++) {
+                ProcessControlBlock pcb = blockedProcesses.get(i);
+                Random rand = new Random();
+                if (rand.nextDouble() <= 0.3) {
+                    readyProcesses.add(pcb);
+                    blockedProcesses.remove(i);
+                    i--;
+                }
+            }
+        }
+    }
+}
