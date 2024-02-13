@@ -127,7 +127,6 @@ public class Main {
         List<ProcessControlBlock> readyProcesses = new ArrayList<>();
         List<ProcessControlBlock> blockedProcesses = new ArrayList<>();
 
-        // Creating 10 processes with random number of instructions
         for (int i = 1; i <= 10; i++) {
             int totalInstructions = 100 + new Random().nextInt(301);
             SimProcess process = new SimProcess(i, "Process" + i, totalInstructions);
@@ -137,10 +136,9 @@ public class Main {
 
         SimProcessor processor = new SimProcessor();
 
-        // Loop for 3000 iterations
         for (int step = 1; step <= 3000; step++) {
-            // Performing context switch or executing instruction
-            if (processor.getCurrentProcess() == null || processor.getCurrInstruction() >= QUANTUM) {
+
+     if (processor.getCurrentProcess() == null || processor.getCurrInstruction() >= QUANTUM) {
                 if (!readyProcesses.isEmpty()) {
                     if (processor.getCurrentProcess() != null) {
                         ProcessControlBlock currentPCB = new ProcessControlBlock(processor.getCurrentProcess());
